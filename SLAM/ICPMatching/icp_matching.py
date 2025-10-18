@@ -13,7 +13,7 @@ import numpy as np
 EPS = 0.0001
 MAX_ITER = 100
 
-show_animation = True
+show_animation = False
 
 
 def icp_matching(previous_points, current_points):
@@ -50,20 +50,20 @@ def icp_matching(previous_points, current_points):
         current_points = (Rt @ current_points) + Tt[:, np.newaxis]
 
         dError = preError - error
-        print("Residual:", error)
+        #print("Residual:", error)
 
         if dError < 0:  # prevent matrix H changing, exit loop
-            print("Not Converge...", preError, dError, count)
+            #print("Not Converge...", preError, dError, count)
             break
 
         preError = error
         H = update_homogeneous_matrix(H, Rt, Tt)
 
         if dError <= EPS:
-            print("Converge", error, dError, count)
+            #print("Converge", error, dError, count)
             break
         elif MAX_ITER <= count:
-            print("Not Converge...", error, dError, count)
+            #print("Not Converge...", error, dError, count)
             break
 
     R = np.array(H[0:-1, 0:-1])
