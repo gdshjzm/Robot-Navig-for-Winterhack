@@ -310,48 +310,48 @@ def determine_frontier_path(state: SimulationState) -> None:
         state.frontier_distances = distances
 
         #-----START: To be completed by candidate-----
-        # 优化的边界点选择策略
+        # Optimized frontier selection mechanism
         
         if not frontiers:
-            # 如果没有边界点，尝试直接前往目标
+            # If no frontier, try directly get to goal
             state.frontier_goal = goal_cell
             start_cell = pose_to_cell(state.world, state.pose)
             state.path = plan_unknown_world(state, start_cell, state.frontier_goal)
             return
         
-        # 基础参数设置
+        # basic parameter configuration
         cell_size = state.world["cell_size_m"]
         goal_center = cell_center(goal_cell, cell_size)
         robot_pos = (state.pose["x"], state.pose["y"])
         robot_heading = state.pose["theta"]
         heading_vec = (math.cos(robot_heading), math.sin(robot_heading))
         
-        # 计算探索进度 (0-1，1表示接近完成)
+        # calculate exploration progress (0-1, 1 means almost done)
         total_cells = state.world.get("grid_size", int(round(state.world["size_m"] / cell_size))) ** 2
         explored_cells = len([cell for cell, dist in distances.items()])
         exploration_progress = min(explored_cells / total_cells, 1.0)
         
         def calculate_information_gain(cell: Cell) -> float:
-            """计算信息增益：该边界点周围未知区域的密度"""
+            """Calculate Information gaining:"""
             center = cell_center(cell, cell_size)
             unknown_count = 0
             total_checked = 0
             
-            # 检查周围3x3区域的未知单元格数量
+            # Finding the numbers of unexplored points around 3x3
             for dx in range(-1, 2):
                 for dy in range(-1, 2):
                     check_cell = (cell[0] + dx, cell[1] + dy)
                     if (0 <= check_cell[0] < state.world.get("grid_size", 4) and 
                         0 <= check_cell[1] < state.world.get("grid_size", 4)):
                         total_checked += 1
-                        # 简化的未知区域检测
-                        if check_cell not in distances:  # 未被探索过的区域
+                        # Simplified unknown area detection
+                        if check_cell not in distances:  # Unexplored area
                             unknown_count += 1
             
             return unknown_count / max(total_checked, 1)
         
         def calculate_heading_alignment(cell: Cell) -> float:
-            """计算与机器人朝向的对齐度"""
+            """Calculate heading alignment"""
             center = cell_center(cell, cell_size)
             dx = center[0] - robot_pos[0]
             dy = center[1] - robot_pos[1]
@@ -360,51 +360,51 @@ def determine_frontier_path(state: SimulationState) -> None:
             if distance < 1e-9:
                 return 1.0
             
-            # 计算余弦相似度
+            # Calculate cosine similarity
             dot_product = (dx * heading_vec[0] + dy * heading_vec[1]) / distance
-            return max(0, dot_product)  # 只考虑前向对齐
+            return max(0, dot_product)      
         
         def calculate_goal_progress(cell: Cell) -> float:
-            """计算朝向目标的进展"""
+            """Calculate progress towards goal"""
             center = cell_center(cell, cell_size)
             
-            # 当前机器人到目标的距离
+            # Current distance between robot and goal
             robot_to_goal_dist = math.hypot(goal_center[0] - robot_pos[0], 
                                           goal_center[1] - robot_pos[1])
             
-            # 边界点到目标的距离
+            # Distance between frontier cell and goal
             frontier_to_goal_dist = math.hypot(goal_center[0] - center[0], 
                                              goal_center[1] - center[1])
             
-            # 如果边界点更接近目标，给予奖励
+            # If frontier cell is closer to goal, give higher progress
             if frontier_to_goal_dist < robot_to_goal_dist:
                 return (robot_to_goal_dist - frontier_to_goal_dist) / robot_to_goal_dist
             else:
                 return 0.0
         
         def calculate_exploration_efficiency(cell: Cell) -> float:
-            """计算探索效率：距离已探索区域的距离"""
+            """Calculate exploration efficiency: distance to nearest explored cell"""
             center = cell_center(cell, cell_size)
             min_dist_to_explored = float('inf')
             
-            # 找到距离最近的已探索点
+            # Find distance to nearest explored cell
             for explored_cell in distances.keys():
                 explored_center = cell_center(explored_cell, cell_size)
                 dist = math.hypot(center[0] - explored_center[0], 
                                 center[1] - explored_center[1])
                 min_dist_to_explored = min(min_dist_to_explored, dist)
             
-            # 归一化距离，鼓励探索远离已知区域的边界
+            # Normalize distance to encourage exploration of unknown areas
             max_possible_dist = math.hypot(state.world["size_m"], state.world["size_m"])
             return min_dist_to_explored / max_possible_dist
         
         def calculate_cluster_size(cell: Cell) -> float:
-            """计算边界点所在集群的大小"""
+            """Calculate size of cluster around frontier cell"""
             cluster_size = 0
             checked = set()
             queue = [cell]
             
-            while queue and cluster_size < 20:  # 限制搜索范围避免过度计算
+            while queue and cluster_size < 20: 
                 current = queue.pop(0)
                 if current in checked:
                     continue
@@ -413,59 +413,54 @@ def determine_frontier_path(state: SimulationState) -> None:
                 if current in frontiers:
                     cluster_size += 1
                     
-                    # 检查相邻的边界点
+                    # Check neighboring cells
                     for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                         neighbor = (current[0] + dx, current[1] + dy)
                         if (neighbor not in checked and 
                             neighbor in frontiers and 
-                            len(queue) < 10):  # 限制队列大小
+                            len(queue) < 10):  # Limit queue size
                             queue.append(neighbor)
             
-            return min(cluster_size / 10.0, 1.0)  # 归一化到0-1
+            return min(cluster_size / 10.0, 1.0)  
         
-        # 为每个边界点计算综合评分
+        # Calculate avg scores for each point
         best_frontier_cell = None
         best_score = -float('inf')
         
         for cell in frontiers:
-            # 各项评分指标
+
             info_gain = calculate_information_gain(cell)
             heading_align = calculate_heading_alignment(cell)
             goal_progress = calculate_goal_progress(cell)
             exploration_eff = calculate_exploration_efficiency(cell)
             cluster_size = calculate_cluster_size(cell)
             
-            # 距离因子 (归一化)
             robot_distance = distances.get(cell, 0)
             max_distance = max(distances.values()) if distances else 1
             distance_factor = robot_distance / max_distance
             
-            # 动态权重调整
-            # 早期探索阶段：重视信息增益和探索效率
-            # 后期阶段：重视目标导向和朝向对齐
             w_info = 0.3 * (1 - exploration_progress) + 0.1 * exploration_progress
             w_heading = 0.2 * (1 - exploration_progress) + 0.3 * exploration_progress  
             w_goal = 0.1 * (1 - exploration_progress) + 0.4 * exploration_progress
             w_efficiency = 0.2
             w_cluster = 0.1
             w_distance = 0.1
-            
-            # 综合评分
+
             score = (w_info * info_gain + 
                     w_heading * heading_align + 
                     w_goal * goal_progress + 
                     w_efficiency * exploration_eff + 
                     w_cluster * cluster_size + 
                     w_distance * distance_factor)
-            
-            # 添加一些随机性避免局部最优
+
+            # Add random fluctuation
             score += 0.01 * (hash(cell) % 100) / 100.0
             
             if score > best_score:
                 best_score = score
                 best_frontier_cell = cell
         
-        # 如果没有找到合适的边界点，选择距离最远的
+        # if no frontier, just select the furthest
         if best_frontier_cell is None:
             best_frontier_cell = max(frontiers, key=lambda c: distances.get(c, 0))
         

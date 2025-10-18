@@ -1,5 +1,7 @@
 # 机器人路径探索优化(For Winterhack London)
 
+For English version, please click [here](README_en.md)
+
 ## 概述
 
 本项目实现了一个基于多指标综合评分的智能前沿选择策略，用于优化机器人在未知环境中的路径探索效率。相比传统的简单线性组合方法，我们的策略在多个测试场景中展现出了显著的性能提升。
@@ -30,7 +32,7 @@ def calculate_information_gain(cell: Cell) -> float:
 def calculate_heading_alignment(cell: Cell) -> float:
     """计算与机器人朝向的对齐度"""
 ```
-- **原理**：计算前沿点方向与机器人当前朝向的余弦相似度
+- **原理**：计算前沿点方向与机器人当前朝向的余弦相似度(和main.py一样)
 - **计算方法**：使用向量点积计算对齐程度
 - **意义**：减少不必要的转向，提高移动效率
 
