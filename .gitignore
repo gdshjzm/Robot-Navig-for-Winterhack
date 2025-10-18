@@ -72,6 +72,6 @@ target/
 matplotrecorder/*
 .vscode/settings.json
 
-# Large video files
-*.mov
-video_demo.mov
+# Large video files (keeping general rule but allowing specific demo video)
+# *.mov
+# video_demo.mov
