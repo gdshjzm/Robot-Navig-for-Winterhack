@@ -1,3 +1,8 @@
+## Submission for WinterHack Challenge
+Name: Busheng Zhang
+BUPTnum: 2023213779
+QMULnum: 231187808
+
 Submission files for Winterhack London of Busheng Zhang
 
 Supplimentary details:
